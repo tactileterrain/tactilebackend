@@ -35,6 +35,19 @@ def get_map(mid):
         'layers': ['layer_id1']
     })
 
+
+layers = {
+    'temp': 'AIRS_L2_Temperature_500hPa_Day',
+    'particulate': 'Particulate_Matter_Below_2.5micrometers_2010-2012',
+    'rain': 'A2_RainOcn_NRT',
+    'wind': 'AMSR2_Wind_Speed_Day',
+    'albedo': 'MERRA2_Surface_Albedo_Monthly',
+    'elevation': 'ASTER_GDEM_Color_Index',
+    'soil_moisture': 'Aquarius_Soil_Moisture_Daily',
+    'pressure': 'MERRA2_Surface_Pressure_Monthly',
+    'population': 'GPW_Population_Density_2020'
+}
+
 @app.route('/map/<mid>/layer/<lid>')
 def get_layer(mid, lid):
     return jsonify({
@@ -55,7 +68,7 @@ def get_map_stl(mid):
 @app.route('/map/<mid>/data')
 def get_map_data(mid):
     return jsonify({
-        'pixel_data': get_image(seattle_top_left, seattle_bottom_right, 4)
+        'pixel_data': get_image(seattle_top_left, seattle_bottom_right, 4, mid)
     })
 
 
@@ -87,13 +100,14 @@ find_tile(flip(seattle_top_left), flip(seattle_bottom_right))
 def url_for(epsg_code, product, time, matrix_set, tile):
     return f'https://gibs.earthdata.nasa.gov/wmts/epsg{epsg_code}/best/{product}/default/{time}/{matrix_set}/{tile.z}/{tile.y}/{tile.x}.png'
 
-def get_image(top_left, bottom_right, zoom):
+def get_image(top_left, bottom_right, zoom, mid):
     merc = Mercator()
     tile = merc.getTileAtLatLng(top_left, zoom)
     # bottom_right_tile = merc.getTileAtLatLng(bottom_right, zoom)
 
     buffer = tempfile.SpooledTemporaryFile(max_size=1e9)
-    url = url_for('3857', 'AIRS_L2_Temperature_500hPa_Day', '2019-12-31', 'GoogleMapsCompatible_Level6', tile)
+    url = url_for('3857', layers[mid], '2020-08-20', 'GoogleMapsCompatible_Level6', tile)
+    print(url)
     r = requests.get(url)
     if r.status_code == 200:
         downloaded = 0
