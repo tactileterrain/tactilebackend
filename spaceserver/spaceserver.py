@@ -55,7 +55,7 @@ def get_map_stl(mid):
 @app.route('/map/<mid>/data')
 def get_map_data(mid):
     return jsonify({
-        'pixel_data': get_image()
+        'pixel_data': get_image(seattle_top_left, seattle_bottom_right, 4)
     })
 
 
@@ -68,9 +68,8 @@ def deg2num(lat_deg, lon_deg, zoom):
     ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
     return (xtile, ytile)
 
-seattle_center = LatLng(49.3992, -125.2586)
-seattle_top_left = LatLng(seattle_center.lat - 5.4/2.0, seattle_center.lng - 8.6/2.0)
-seattle_bottom_right =  LatLng(seattle_center.lat + 5.4/2.0, seattle_center.lng + 8.6/2.0)
+seattle_top_left = LatLng(43.3992, -125.2586)
+seattle_bottom_right =  LatLng(43.9992, -116.6586)
 
 def flip(x):
     return x[1], x[0]
@@ -86,7 +85,7 @@ def find_tile(lat_lon_1, lat_lon_2):
 find_tile(flip(seattle_top_left), flip(seattle_bottom_right))
 
 def url_for(epsg_code, product, time, matrix_set, tile):
-    return 'https://gibs.earthdata.nasa.gov/wmts/epsg{epsg_code}/best/{product}/default/{time}/{matrix_set}/{tile.z}/{tile.y}/{tile.x}.png'
+    return f'https://gibs.earthdata.nasa.gov/wmts/epsg{epsg_code}/best/{product}/default/{time}/{matrix_set}/{tile.z}/{tile.y}/{tile.x}.png'
 
 def get_image(top_left, bottom_right, zoom):
     merc = Mercator()
@@ -94,8 +93,8 @@ def get_image(top_left, bottom_right, zoom):
     # bottom_right_tile = merc.getTileAtLatLng(bottom_right, zoom)
 
     buffer = tempfile.SpooledTemporaryFile(max_size=1e9)
-    url = url_for('3857', 'MODIS_Terra_Aerosol', '2014-04-09', 'GoogleMapsCompatible_Level6', tile)
-    r = requests.get('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol/default/2014-04-09/GoogleMapsCompatible_Level6/1/1/1.png')
+    url = url_for('3857', 'AIRS_L2_Temperature_500hPa_Day', '2019-12-31', 'GoogleMapsCompatible_Level6', tile)
+    r = requests.get(url)
     if r.status_code == 200:
         downloaded = 0
         filesize = int(r.headers['content-length'])
@@ -110,11 +109,12 @@ def get_image(top_left, bottom_right, zoom):
         print(i.size)
         pic = np.array(i)
         print(pic.size)
-    return [
-        [
-            [int(pic[i, j]), int(pic[i, j]), int(pic[i, j])] for i in range(32)
-        ] for j in range(32)
-    ]
+        return [
+            [
+                [int(pic[i, j]), int(pic[i, j]), int(pic[i, j])] for i in range(32)
+            ] for j in range(32)
+        ]
+    return 'Download Failed'
 
 @app.route('/layers')
 def get_layer_list():
