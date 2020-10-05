@@ -15,6 +15,7 @@ LatLng = namedtuple('LatLng', ['lat', 'lng'])
 Coords = namedtuple('Coords', ['x', 'y'])
 Tile = namedtuple('Tile', ['x', 'y', 'z'])
 Bounds = namedtuple('Bounds', ['sw', 'ne'])
+Layer = namedtuple('Layer', ['product', 'tile_matrix_set', 'date', 'epsg', 'ext'])
 
 @app.route('/')
 def hello_world():
@@ -36,16 +37,20 @@ def get_map(mid):
     })
 
 
+
+
 layers = {
-    'temp': 'AIRS_L2_Temperature_500hPa_Day',
-    'particulate': 'Particulate_Matter_Below_2.5micrometers_2010-2012',
-    'rain': 'A2_RainOcn_NRT',
-    'wind': 'AMSR2_Wind_Speed_Day',
-    'albedo': 'MERRA2_Surface_Albedo_Monthly',
-    'elevation': 'ASTER_GDEM_Color_Index',
-    'soil_moisture': 'Aquarius_Soil_Moisture_Daily',
-    'pressure': 'MERRA2_Surface_Pressure_Monthly',
-    'population': 'GPW_Population_Density_2020'
+    'temp': Layer('AIRS_L2_Temperature_500hPa_Day', None, None, None, None),
+    'particulate': Layer('Particulate_Matter_Below_2.5micrometers_2010-2012', None, None, None, None),
+    'rain': Layer('A2_RainOcn_NRT', None, None, None, None),
+    'wind': Layer('AMSR2_Wind_Speed_Day', None, None, None, None),
+    'albedo': Layer('MERRA2_Surface_Albedo_Monthly', None, None, None, None),
+    'elevation': Layer('ASTER_GDEM_Color_Index', None, None, None, None),
+    'soil_moisture': Layer('Aquarius_Soil_Moisture_Daily', None, None, None, None),
+    'pressure': Layer('MERRA2_Surface_Pressure_Monthly', None, None, None, None),
+    'population': Layer('GPW_Population_Density_2020', None, None, None, None),
+    'air_mass': Layer('GOES-West_ABI_Air_Mass', None, None, None, None),
+    'clouds': Layer('MODIS_Terra_CorrectedReflectance_TrueColor', '250m', None, '4326', 'jpg')
 }
 
 @app.route('/map/<mid>/layer/<lid>')
@@ -97,16 +102,27 @@ def find_tile(lat_lon_1, lat_lon_2):
 
 find_tile(flip(seattle_top_left), flip(seattle_bottom_right))
 
-def url_for(epsg_code, product, time, matrix_set, tile):
-    return f'https://gibs.earthdata.nasa.gov/wmts/epsg{epsg_code}/best/{product}/default/{time}/{matrix_set}/{tile.z}/{tile.y}/{tile.x}.png'
+def url_for(epsg_code, product, time, matrix_set, tile, ext):
+    return f'https://gibs.earthdata.nasa.gov/wmts/epsg{epsg_code}/best/{product}/default/{time}/{matrix_set}/{tile.z}/{tile.y}/{tile.x}.{ext}'
 
 def get_image(top_left, bottom_right, zoom, mid):
     merc = Mercator()
     tile = merc.getTileAtLatLng(top_left, zoom)
     # bottom_right_tile = merc.getTileAtLatLng(bottom_right, zoom)
 
+    layer = layers[mid]
+
+    today = '2020-10-01'
+
+    product = layer.product
+    tile_matrix_set = layer.tile_matrix_set or 'GoogleMapsCompatible_Level6'
+    date = layer.date or today
+    epsg = layer.epsg or '3857'
+    ext = layer.ext or 'png'
+
+
     buffer = tempfile.SpooledTemporaryFile(max_size=1e9)
-    url = url_for('3857', layers[mid], '2020-08-20', 'GoogleMapsCompatible_Level6', tile)
+    url = url_for(epsg, product, date, tile_matrix_set, tile, ext)
     print(url)
     r = requests.get(url)
     if r.status_code == 200:
@@ -123,11 +139,19 @@ def get_image(top_left, bottom_right, zoom, mid):
         print(i.size)
         pic = np.array(i)
         print(pic.size)
-        return [
-            [
-                [int(pic[i, j]), int(pic[i, j]), int(pic[i, j])] for i in range(32)
-            ] for j in range(32)
-        ]
+        if i.mode == 'P':
+
+            return [
+                [
+                    [int(pic[i, j]), int(pic[i, j]), int(pic[i, j])] for i in range(32)
+                ] for j in range(32)
+            ]
+        if i.mode == 'RGB':
+            return [
+                [
+                    [int(pic[i, j, 0]), int(pic[i, j, 1]), int(pic[i, j, 2])] for i in range(32)
+                ] for j in range(32)
+            ]
     return 'Download Failed'
 
 @app.route('/layers')
