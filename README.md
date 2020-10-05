@@ -1,6 +1,8 @@
 # SpaceApps Tactile Terrain Backend API
 
-# Running
+This is a test flask server to test the Raspberry Pi device locally when pinging real time data sets.
+
+# To run
 ```
 
 export FLASK_APP="spaceserver/spaceserver.py"
