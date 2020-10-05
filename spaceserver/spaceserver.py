@@ -7,6 +7,7 @@ import tempfile
 import io
 import numpy as np
 from collections import namedtuple
+import datetime
 
 app = Flask(__name__)
 
@@ -37,6 +38,7 @@ def get_map(mid):
     })
 
 
+iter_date = datetime.date(2020, 1, 1)
 
 
 layers = {
@@ -106,6 +108,7 @@ def url_for(epsg_code, product, time, matrix_set, tile, ext):
     return f'https://gibs.earthdata.nasa.gov/wmts/epsg{epsg_code}/best/{product}/default/{time}/{matrix_set}/{tile.z}/{tile.y}/{tile.x}.{ext}'
 
 def get_image(top_left, bottom_right, zoom, mid):
+    global iter_date
     merc = Mercator()
     tile = merc.getTileAtLatLng(top_left, zoom)
     # bottom_right_tile = merc.getTileAtLatLng(bottom_right, zoom)
@@ -116,7 +119,14 @@ def get_image(top_left, bottom_right, zoom, mid):
 
     product = layer.product
     tile_matrix_set = layer.tile_matrix_set or 'GoogleMapsCompatible_Level6'
-    date = layer.date or today
+    date = layer.date
+    if date is None:
+        if iter_date > datetime.date.today():
+            iter_date = datetime.date(2020, 1, 1)
+        else:
+            iter_date = iter_date + datetime.timedelta(days=1)
+        date = iter_date.strftime('%Y-%m-%d')
+
     epsg = layer.epsg or '3857'
     ext = layer.ext or 'png'
 
