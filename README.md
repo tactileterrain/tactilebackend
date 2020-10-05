@@ -3,7 +3,7 @@
 # Running
 ```
 
-EXPORT FLASK_APP="spaceserver/spaceserver.py"
+export FLASK_APP="spaceserver/spaceserver.py"
 flask run --host 0.0.0.0
 
 ```
